@@ -35,9 +35,12 @@ if __name__ == '__main__':
     w1 = tf.get_variable("w1", shape=[envSize, H],
                          initializer=tf.contrib.layers.xavier_initializer())
     hidden_layer_1 = tf.nn.relu(tf.matmul(observations, w1))
+    w15 = tf.get_variable("w15", shape=[H, H],
+                         initializer=tf.contrib.layers.xavier_initializer())
+    hidden_layer_2 = tf.nn.relu(tf.matmul(hidden_layer_1, w15))
     w2 = tf.get_variable("w2", shape=[H, 1],
                          initializer=tf.contrib.layers.xavier_initializer())
-    result_score = tf.matmul(hidden_layer_1, w2)
+    result_score = tf.matmul(hidden_layer_2, w2)
     probablility = tf.nn.sigmoid(result_score)
 
     training_variables = tf.trainable_variables()
@@ -59,35 +62,9 @@ if __name__ == '__main__':
 
     batch_gradent = [w1_gradent, w2_gradent]
     update_gradent = adam.apply_gradients(zip(batch_gradent, training_variables))
-    
-    #D=[]
-    #explore = 1.0
 
     max_episodes = 2000
     max_steps = 500
-
-
-    #..........................
-    # Q-Learner Setup
-    #w1 = tf.random_uniform([env.observation_space.shape[0], 200], -1.0, 1.0)
-    #w1 = tf.Variable(w1)
-    #b1 = tf.random_uniform([200], -1.0, 1.0)
-    #b1 = tf.Variable(b1)
-
-    #w2 = tf.random_uniform([200, env.action_space.n], -1.0, 1.0)
-    #w2 = tf.Variable(w2)
-    #b2 = tf.random_uniform([env.action_space.n], -1.0, 1.0)
-    #b2 = tf.variable(b2)
-
-    # Connecting the neurons together
-    #prev_states = tf.placeholder(tf.float32, [None, self._dim_state])
-    #hidden_1 = tf.nn.relu(tf.matmul(prev_states, w1) + b1)
-    #action_values = tf.nn.softmax(tf.matmul(hidden_1, w2) + b2)
-    
-
-    #Setup Q
-    
-    #Setup Qprime
 
     xs,hs,dlogps,drs,ys,tfps = [],[],[],[],[],[]
     running_reward = None
