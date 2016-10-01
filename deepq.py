@@ -133,6 +133,7 @@ if __name__ == '__main__':
 
                         if reward_sum/batch_number > 475:
                                 print 'Task solved in', episode_number, 'episodes!'
+                                reward_sum = 0
                                 break
                         reward_sum = 0
                     break
