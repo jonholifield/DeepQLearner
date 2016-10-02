@@ -40,6 +40,9 @@ if __name__ == '__main__':
     hidden_1 = tf.nn.relu(tf.matmul(states, w1) + bias1)
     hidden_2 = tf.nn.relu(tf.matmul(hidden_1, w2) + bias2)
     action_values = tf.matmul(hidden_2, w3) + bias3
+    action_masks = tf.placeholder(tf.float32, [None, env.action_space.n], name="action_masks")
+    prev_values = tf.reduce_sum(tf.mul(action_values, action_masks), reduction_indices=1)
+
     
     Q = tf.reduce_sum(tf.mul(action_values, actions), reduction_indices=1) 
     
@@ -63,6 +66,8 @@ if __name__ == '__main__':
     hidden_2_prime = tf.nn.relu(tf.matmul(hidden_1_prime, w2_prime) + bias2_prime)
     next_action_values =  tf.matmul(hidden_2_prime, w3_prime) + bias3_prime
     #next_values = tf.reduce_max(next_action_values, reduction_indices=1)   
+    prev_rewards = tf.placeholder(tf.float32, [None, ], name="prev_rewards")
+    next_values = prev_rewards + gamma * tf.reduce_max(next_action_values, reduction_indices=1)
     
      #need to run these to assign weights from Q to Q_prime
     w1_prime_update= w1_prime.assign(w1)
@@ -75,10 +80,11 @@ if __name__ == '__main__':
     #Q_prime = rewards + gamma * tf.reduce_max(next_action_values, reduction_indices=1)
     
     #we need to train Q
-    one_hot = tf.placeholder(tf.float32, [None, 2], name="training_mask")
-    rewards = tf.placeholder(tf.float32, [None, 2], name="rewards") # This holds all the rewards that are real/enhanced with Qprime
-    loss = tf.reduce_mean((rewards - action_values)**2) * one_hot  
+    #one_hot = tf.placeholder(tf.float32, [None, 2], name="training_mask")
+    #rewards = tf.placeholder(tf.float32, [None, 2], name="rewards") # This holds all the rewards that are real/enhanced with Qprime
+    #loss = tf.reduce_mean((rewards - action_values)**2) * one_hot  
     
+    loss = tf.reduce_mean(tf.square(prev_values - next_values))
     train = tf.train.AdamOptimizer(.01).minimize(loss) 
     
     #Setting up the enviroment
@@ -87,6 +93,11 @@ if __name__ == '__main__':
     max_steps = 600
 
     D = []
+    D_state= []
+    D_curr_action= [] 
+    D_reward= []
+    D_new_state= []
+    D_done= []
     explore = 1.0
     
     rewardList = []
@@ -137,29 +148,44 @@ if __name__ == '__main__':
                 
                 new_state, reward, done, _ = env.step(action)
                 reward_sum += reward
+                #print reward
                 
                 D.append([state, curr_action, reward, new_state, done])
-                if len(D) > 500:
-                    D.pop(0)
-                #Training a Batch
-                #samples = D.sample(50)
-                sample_size = len(D)
-                if sample_size > 100:
-                    sample_size = 100
-                else:
-                    sample_size = sample_size
-                samples = [ D[i] for i in sorted(random.sample(xrange(len(D)), sample_size)) ]
-                for i_sample in samples:
-                    #print i_sample
-                    if i_sample[4] == True:
-                        y_ = i_sample[2]
+                D_state.append(state)
+                D_curr_action.append(curr_action)
+                D_reward.append(reward)
+                D_new_state.append(new_state)
+                D_done.append(done)
+                
+                if done:
+                    if len(D) > 500:
+                        D.pop(0)
+                    #Training a Batch
+                    #samples = D.sample(50)
+                    sample_size = len(D)
+                    if sample_size > 100:
+                        sample_size = 100
                     else:
-                        y_ = reward + gamma * sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])})
-                    y_ = curr_action * np.vstack([y_])
-                    #print y_
-                    #y_ = y_
-                    #print y_
-                    sess.run(train, feed_dict={states: np.array([i_sample[0]]), next_states: np.array([i_sample[3]]), rewards: y_, actions: np.array([i_sample[1]]), one_hot: np.array([curr_action])})
+                        sample_size = sample_size
+                    samples = [ D[i] for i in sorted(random.sample(xrange(len(D)), sample_size)) ]
+                    #print samples
+                    y_ = []
+                    states_samples = []
+                    next_states_samples = []
+                    actions_samples = []
+                    for ind, i_sample in enumerate(samples):
+                        #print i_sample
+                        #if i_sample[4] == True:
+                        #    y_.append(i_sample[2])
+                        #else:
+                        #    y_.append(i_sample[2] + gamma * sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])}))
+                        #print y_
+                        y_.append(i_sample[2])
+                        states_samples.append(i_sample[0])
+                        next_states_samples.append(i_sample[3])
+                        actions_samples.append(i_sample[1])
+                        #print y_
+                    sess.run(train, feed_dict={states: states_samples, next_states: next_states_samples, prev_rewards: y_, action_masks: actions_samples})
                
                 if done: 
                     print 'Reward for episode %f is %f. Explore is %f' %(episode,reward_sum, explore)
@@ -169,7 +195,12 @@ if __name__ == '__main__':
                     #    print 'Task solved in', episode, 'episodes!'
                     reward_sum = 0
                     D = [] # only train the episode you are in
-                    break;
+                    D_state= []
+                    D_curr_action = []
+                    D_reward= []
+                    D_new_state= []
+                    D_done= []
+                    break
                 
                 
             if episode % num_of_episodes_between_q_copies == 0:
@@ -180,7 +211,7 @@ if __name__ == '__main__':
                 sess.run(w3_prime_update)
                 sess.run(bias3_prime_update)
             
-            explore = explore * .995
+            explore = explore * 0.995
             
                 
                 
