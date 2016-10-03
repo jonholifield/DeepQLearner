@@ -7,8 +7,8 @@ import math
 import random
 
 # HYPERPARMETERS
-H = 50
-H2 = 50
+H = 150
+H2 = 150
 batch_number = 50
 gamma = 0.99
 explore = 1
