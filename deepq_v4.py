@@ -76,8 +76,8 @@ if __name__ == '__main__':
     
     #we need to train Q
     one_hot = tf.placeholder(tf.float32, [None, 2], name="training_mask")
-    rewards = tf.placeholder(tf.float32, [None, 2], name="rewards") # This holds all the rewards that are real/enhanced with Qprime
-    loss = tf.reduce_mean((rewards - action_values)**2) * one_hot  
+    rewards = tf.placeholder(tf.float32, [None, ], name="rewards") # This holds all the rewards that are real/enhanced with Qprime
+    loss = tf.reduce_mean((rewards - Q)**2) * one_hot  
     
     train = tf.train.AdamOptimizer(.01).minimize(loss) 
     
@@ -120,25 +120,27 @@ if __name__ == '__main__':
                 
                 if explore > random.random():
                     action = env.action_space.sample()
-                    if(action == 1):
-                        curr_action = [0,1] 
+                    if(action == 1.0):
+                        curr_action = [0.0,1.0] 
                     else:
-                        curr_action = [1,0]
+                        curr_action = [1.0,0.0]
                 else:
                     #get action from policy
                     results = sess.run(action_values, feed_dict={states: np.array([state])})
                     #print results
                     action = (np.argmax(results))
                     #print action
-                    if(action == 1):
-                        curr_action = [0,1]
+                    if(action == 1.0):
+                        curr_action = [0.0,1.0]
                     else:
-                        cur_action = [1,0]
+                        cur_action = [1.0,0.0]
                 
                 new_state, reward, done, _ = env.step(action)
                 reward_sum += reward
                 
                 D.append([state, curr_action, reward, new_state, done])
+                
+                state = new_state;
                 if len(D) > 500:
                     D.pop(0)
                 #Training a Batch
@@ -148,18 +150,35 @@ if __name__ == '__main__':
                     sample_size = 100
                 else:
                     sample_size = sample_size
-                samples = [ D[i] for i in sorted(random.sample(xrange(len(D)), sample_size)) ]
-                for i_sample in samples:
-                    #print i_sample
-                    if i_sample[4] == True:
-                        y_ = i_sample[2]
-                    else:
-                        y_ = reward + gamma * sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])})
-                    y_ = curr_action * np.vstack([y_])
+                
+                if done:
+                    samples = [ D[i] for i in sorted(random.sample(xrange(len(D)), sample_size)) ]
+                    #print samples
+                    y_ = []
+                    states_samples = []
+                    next_states_samples = []
+                    actions_samples = []
+                    for ind, i_sample in enumerate(samples):
+                        #print i_sample
+                        if i_sample[4] == True:
+                            #print i_sample[2]
+                            y_.append(i_sample[2])
+                            #print y_
+                        else:
+                            y_.append(max(i_sample[2] + gamma * max(sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])}))))
+                            #print y_
+                        #y_.append(i_sample[2])
+                        states_samples.append(i_sample[0])
+                        next_states_samples.append(i_sample[3])
+                        actions_samples.append(i_sample[1])
+                        
+                    sess.run(train, feed_dict={states: states_samples, next_states: next_states_samples, rewards: y_, actions: actions_samples, one_hot: actions_samples})
+                        #y_ = reward + gamma * sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])})
+                    #y_ = curr_action * np.vstack([y_])
                     #print y_
                     #y_ = y_
                     #print y_
-                    sess.run(train, feed_dict={states: np.array([i_sample[0]]), next_states: np.array([i_sample[3]]), rewards: y_, actions: np.array([i_sample[1]]), one_hot: np.array([curr_action])})
+                    #sess.run(train, feed_dict={states: np.array([i_sample[0]]), next_states: np.array([i_sample[3]]), rewards: y_, actions: np.array([i_sample[1]]), one_hot: np.array([curr_action])})
                
                 if done: 
                     print 'Reward for episode %f is %f. Explore is %f' %(episode,reward_sum, explore)
@@ -168,7 +187,7 @@ if __name__ == '__main__':
                     #if reward_sum/batch_number > 475:
                     #    print 'Task solved in', episode, 'episodes!'
                     reward_sum = 0
-                    D = [] # only train the episode you are in
+                    #D = [] # only train the episode you are in
                     break;
                 
                 
