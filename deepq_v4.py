@@ -165,7 +165,7 @@ if __name__ == '__main__':
                             y_.append(i_sample[2])
                             #print y_
                         else:
-                            y_.append(max(i_sample[2] + gamma * max(sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])}))))
+                            y_.append(i_sample[2] + gamma * max(max(sess.run(next_action_values, feed_dict={next_states: np.array([i_sample[3]])}))))
                             #print y_
                         #y_.append(i_sample[2])
                         states_samples.append(i_sample[0])
@@ -181,12 +181,13 @@ if __name__ == '__main__':
                     #sess.run(train, feed_dict={states: np.array([i_sample[0]]), next_states: np.array([i_sample[3]]), rewards: y_, actions: np.array([i_sample[1]]), one_hot: np.array([curr_action])})
                
                 if done: 
-                    print 'Reward for episode %f is %f. Explore is %f' %(episode,reward_sum, explore)
-                    #if episode % batch_number == 0:
-                    #    print 'Average reward for episode %f is %f.' %(episode,reward_sum/batch_number)
-                    #if reward_sum/batch_number > 475:
-                    #    print 'Task solved in', episode, 'episodes!'
-                    reward_sum = 0
+                    #print 'Reward for episode %f is %f. Explore is %f' %(episode,reward_sum, explore)
+                    if episode % batch_number == 0:
+                        print 'Average reward for episode %f is %f.' %(episode,reward_sum/batch_number)
+                        reward_sum = 0
+                    if reward_sum/batch_number > 475:
+                        print 'Task solved in', episode, 'episodes!'
+                   
                     #D = [] # only train the episode you are in
                     break;
                 
